@@ -34,10 +34,21 @@ func main() {
 		phone 		TEXT 		NOT NULL UNIQUE,
 		active      BOOLEAN 	NOT NULL DEFAULT TRUE,
 		created 	TIMESTAMP	NOT NULL DEFAULT CURRENT_TIMESTAMP
-	)
+	);
 `)
 	if err != nil {
 		log.Print(err)
 		return
 	}
+
+	result, err := db.ExecContext(ctx, `
+	INSET INTO customers(name, phone) VALUES ('Vasya','+992000000001') ON CONFLICT DO NOTHING;
+	`)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	log.Print(result.RowsAffected())
+	log.Print(result.LastInsertId())
+
 }
