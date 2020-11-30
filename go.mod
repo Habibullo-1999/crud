@@ -1,4 +1,4 @@
-module github.com/Habibullo-1999/gosql
+module github.com/Habibullo-1999/crud
 
 go 1.15
 
