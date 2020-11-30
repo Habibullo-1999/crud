@@ -26,10 +26,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) Init() {
-	s.mux.HandleFunc("/customer.getById", s.handleGetCustomerByID)
-	s.mux.HandleFunc("/customer.getAll", s.handleGetCustomerAll)
-	s.mux.HandleFunc("/customer.getAllActive", s.handleGetCustomerAllActive)
-	s.mux.HandleFunc("/customer.save", s.handleGetCustomerSave)
+	s.mux.HandleFunc("/customers.getById", s.handleGetCustomerByID)
+	s.mux.HandleFunc("/customers.getAll", s.handleGetCustomerAll)
+	s.mux.HandleFunc("/customers.getAllActive", s.handleGetCustomerAllActive)
+	s.mux.HandleFunc("/customers.save", s.handleGetCustomerSave)
 }
 
 func (s *Server) handleGetCustomerByID(w http.ResponseWriter, r *http.Request) {
