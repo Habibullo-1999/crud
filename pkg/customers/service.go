@@ -23,11 +23,11 @@ func NewService(db *sql.DB) *Service {
 }
 
 type Customer struct {
-	ID      int64
-	Name    string
-	Phone   string
-	Active  string
-	Created time.Time
+	ID      int64     `json:"id"`
+	Name    string    `json:"name"`
+	Phone   string    `json:"phone"`
+	Active  bool      `json:"active"`
+	Created time.Time `json:"created"`
 }
 
 func (s *Service) ByID(ctx context.Context, id int64) (*Customer, error) {
@@ -48,30 +48,30 @@ func (s *Service) ByID(ctx context.Context, id int64) (*Customer, error) {
 	return item,nil
 
 }
-func (s *Service) All(ctx context.Context) ([]*Customer, error) {
+func (s *Service) All(ctx context.Context) (items []*Customer, err  error) {
 	
-	items := s.items
-		rows,err := s.db.QueryContext(ctx, `
-			SELECT id, name, phone, active, created FROM customers ORDER BY id DESC
-		`)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
+	rows,err := s.db.QueryContext(ctx, `
+		SELECT * FROM customers
+	`)
+	if err != nil {
+		return nil, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
-		item := &Customer{}
-		err := rows.Scan(&item.ID,&item.Name, &item.Phone, &item.Active, &item.Created)
-		if err != nil {
-			log.Print(err)
-			return nil, ErrNotFound
-		}
-		items = append(items, item)
+			item := &Customer{}
+			err := rows.Scan(
+					&item.ID,
+					&item.Name, 
+					&item.Phone, 
+					&item.Active,
+					&item.Created)
+			if err != nil {
+				log.Print(err)
+			}
+
+			items = append(items, item)
 	}
-	if err != nil {
-		log.Print(err)
-		return nil, ErrInternal
-	}
-	
 	return items,nil
 }
 func (s *Service) AllActive(ctx context.Context) ([]*Customer, error) {
@@ -100,12 +100,30 @@ func (s *Service) AllActive(ctx context.Context) ([]*Customer, error) {
 	
 	return items,nil
 }
-func (s *Service) Save(ctx context.Context, item *Customer) (*Customer, error) {
-	items := &Customer{}
-	err := s.db.QueryRowContext(ctx, `
-	INSERT INTO customers(name,phone) VALUES($1,$2) ON CONFLICT (phone) DO UPDATE SET name = excluded.name RETURNING id, name, phone, active, created
-	`,item.Name, item.Phone).Scan(&items.ID,&items.Name, &items.Phone,&items.Active, &items.Created)
 
+//Save method 
+func (s *Service) Save(ctx context.Context, item *Customer) (c *Customer,err error) {
+	items := &Customer{}
+	if item.ID == 0 {
+		err = s.db.QueryRowContext(ctx, `
+		INSERT INTO customers(name,phone) VALUES($1,$2) RETURNING *
+		`,item.Name, item.Phone).Scan(
+			&items.ID,
+			&items.Name, 
+			&items.Phone,
+			&items.Active, 
+			&items.Created)
+		
+	} else {
+		err = s.db.QueryRowContext(ctx, `
+		UPDATE customers SET name=$1, phone=$2 WHERE id=$3 RETURNING *
+		`, item.Name, item.Phone, item.ID).Scan(
+			&items.ID,
+			&items.Name, 
+			&items.Phone,
+			&items.Active, 
+			&items.Created)
+	}
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -117,53 +135,61 @@ func (s *Service) Save(ctx context.Context, item *Customer) (*Customer, error) {
 
 	return items,nil
 
-	// if item.ID == 0 {
-	// 	//увеличиваем стартовый ID
-	// 	sID++
-	// 	//выставляем новый ID для баннера
-	// 	item.ID = sID
-	// 	//проверяем если файл пришел то сохроняем его под нужную имя
-	// 	if item.Image != "" {
-	// 		//генерируем Id сейчас Id только (Jpg)
-	// 		item.Image = fmt.Sprint(item.ID) + "." + item.Image
-	// 		// если произашло ошибка возврашаем ошибку
-	// 		err := uploadFile(file, "./web/banners/"+item.Image)
-	// 		if err != nil {
-	// 			return nil, err
-	// 		}
-	// 	}
-	// 	//добавляем его в слайс
-	// 	s.items = append(s.items, item)
-	// 	//вернем баннер и ошибку nil
-	// 	return item, nil
-	// }
-	// //если id не равно 0 то ишем его из сушествуеших
-	// for k, v := range s.items {
-	// 	//если нашли то заменяем старый баннер с новым
-	// 	if v.ID == item.ID {
+}
 
-	// 		//проверяем если файл пришел то сохроняем его под нужную имя
-	// 		if item.Image != "" {
-	// 			//генерируем Id сейчас Id только (Jpg)
-	// 			item.Image = fmt.Sprint(item.ID) + "." + item.Image
-	// 			// визиваем функцию для сохранение если произашло ошибка возврашаем ошибку
-	// 			err := uploadFile(file, "./web/banners/"+item.Image)
+func (s *Service) RemoveById(ctx context.Context, id int64) (*Customer, error) {
+	item := &Customer{}
+	err := s.db.QueryRowContext(ctx, `
+	DELETE FROM customers WHERE id=$1 RETURNING id,name,phone,active,created 
+	`,id).Scan(&item.ID,&item.Name, &item.Phone,&item.Active, &item.Created)
 
-	// 			if err != nil {
-	// 				return nil, err
-	// 			}
-				
-	// 		} else {
-	// 			item.Image = s.items[k].Image
-	// 		}
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
 
-	// 		//если нашли то в слайс под индексом найденного выставим новый элемент
-	// 		s.items[k] = item
-	// 		//вернем баннер и ошибку nil
-	// 		return item, nil
-	// 	}
-	// }
-	// //если не нашли то вернем ошибку что у нас такого банера не сушествует
-	// return nil, errors.New("item not found")
+	if err != nil {
+		log.Print(err)
+		return nil, ErrInternal
+	}
+
+	return item,nil
 
 }
+
+func (s *Service) BlockByID(ctx context.Context, id int64) (*Customer, error) {
+	item := &Customer{}
+	err := s.db.QueryRowContext(ctx, `
+		UPDATE customers SET active = false WHERE id = $1 RETURNING id, name, phone, active, created
+	`,id).Scan(&item.ID,&item.Name, &item.Phone,&item.Active, &item.Created)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+
+	if err != nil {
+		log.Print(err)
+		return nil, ErrInternal
+	}
+
+	return item,nil
+
+}
+func (s *Service) UnBlockByID(ctx context.Context, id int64) (*Customer, error) {
+	item := &Customer{}
+	err := s.db.QueryRowContext(ctx, `
+		UPDATE customers SET active = true WHERE id = $1 RETURNING id, name, phone, active, created
+	`,id).Scan(&item.ID,&item.Name, &item.Phone,&item.Active, &item.Created)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+
+	if err != nil {
+		log.Print(err)
+		return nil, ErrInternal
+	}
+
+	return item,nil
+
+}
+
