@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/Habibullo-1999/crud/cmd/server/app"
+	"github.com/Habibullo-1999/crud/cmd/app"
 	"github.com/Habibullo-1999/crud/pkg/customers"
 	_ "github.com/jackc/pgx/v4/stdlib"
 
