@@ -52,7 +52,7 @@ func (s *Service) All(ctx context.Context) ([]*Customer, error) {
 	
 	items := s.items
 		rows,err := s.db.QueryContext(ctx, `
-			SELECT id, name, phone, active, created FROM customers
+			SELECT id, name, phone, active, created FROM customers ORDER BY id DESC
 		`)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound

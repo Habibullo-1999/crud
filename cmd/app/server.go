@@ -30,6 +30,7 @@ func (s *Server) Init() {
 	s.mux.HandleFunc("/customers.getAll", s.handleGetCustomerAll)
 	s.mux.HandleFunc("/customers.getAllActive", s.handleGetCustomerAllActive)
 	s.mux.HandleFunc("/customers.save", s.handleGetCustomerSave)
+	//s.mux.HandleFunc("/customers.getById", s.handleGetCustomerByID)
 }
 
 func (s *Server) handleGetCustomerByID(w http.ResponseWriter, r *http.Request) {
