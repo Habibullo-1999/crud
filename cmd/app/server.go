@@ -3,10 +3,9 @@ package app
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"net/http"
 	"strconv"
-	"time"
+	//"time"
 
 	"github.com/Habibullo-1999/crud/pkg/customers"
 
@@ -113,39 +112,61 @@ func (s *Server) handleGetCustomerAllActive(w http.ResponseWriter, r *http.Reque
 }
 
 func (s *Server) handleGetCustomerSave(w http.ResponseWriter, r *http.Request) {
-	idParam := r.URL.Query().Get("id")
-	name := r.URL.Query().Get("name")
-	phone := r.URL.Query().Get("phone")
+	// idParam := r.URL.Query().Get("id")
+	// name := r.URL.Query().Get("name")
+	// phone := r.URL.Query().Get("phone")
 
-	id, err := strconv.ParseInt(idParam, 10, 64)
-	log.Print(id)
+	// id, err := strconv.ParseInt(idParam, 10, 64)
+
 	// if err != nil {
-	// 	return 
+	// 	http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+	// 	return
 	// }
 
+	// if name == "" && phone == "" {
+	// 	http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+	// 	return
+	// }
+	// itemR := &customers.Customer{
+	// 	ID:    id,
+	// 	Name:  name,
+	// 	Phone: phone,
+	// 	// Active:  bool(true),
+	// 	// Created: time.Now(),
+	// }
+
+	// item, err := s.customersSvc.Save(r.Context(), itemR)
+
+	// if err != nil {
+	// 	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+	// 	return
+	// }
+	//получаем данные из параметра запроса
+	idP := r.FormValue("id")
+	name := r.FormValue("name")
+	phone := r.FormValue("phone")
+
+	id, err := strconv.ParseInt(idP, 10, 64)
+	
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+	
 	if name == "" && phone == ""  {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
+
+
 	itemR := &customers.Customer{
-		ID:      id,
-		Name:    name,
-		Phone:   phone,
-		Active:  bool(true),
-		Created: time.Now(),
+		ID:id,
+		Name:name,
+		Phone:phone,
+		/* Active:true,
+		Created:time.Now() */
 	}
-
 	item, err := s.customersSvc.Save(r.Context(), itemR)
-
-	if errors.Is(err, customers.ErrNotFound) {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-		return
-	}
-
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
 
 	data, err := json.Marshal(item)
 	if err != nil {
