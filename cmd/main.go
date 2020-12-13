@@ -10,6 +10,8 @@ import (
 
 	"github.com/Habibullo-1999/crud/cmd/app"
 	"github.com/Habibullo-1999/crud/pkg/customers"
+	"github.com/Habibullo-1999/crud/pkg/security"
+	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"go.uber.org/dig"
 
@@ -30,12 +32,13 @@ func main() {
 func execute(host string, port string, dsn string) (err error) {
 	deps := []interface{}{
 		app.NewServer,
-		http.NewServeMux,
+		mux.NewRouter,
 		func() (*pgxpool.Pool,error) {
 			ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
 			return pgxpool.Connect(ctx, dsn)
 		},
 		customers.NewService,
+		security.NewService,
 		func(server *app.Server) *http.Server {
 			return &http.Server{
 				Addr:    net.JoinHostPort(host, port),

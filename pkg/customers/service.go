@@ -71,30 +71,26 @@ func (s *Service) All(ctx context.Context) (items []*Customer, err error) {
 	}
 	return items, nil
 }
-func (s *Service) AllActive(ctx context.Context) (c []*Customer, err  error) {
+func (s *Service) AllActive(ctx context.Context) (items []*Customer, err  error) {
 
-	items := c
-	rows, err := s.pool.Query(ctx, `
-			SELECT id, name, phone, active, created FROM customers WHERE active
-		`)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
-	}
+	rows, err:= s.pool.Query(ctx, `
+		SELECT * FROM customers WHERE active
+	`)
 
-	for rows.Next() {
+	for rows.Next(){
 		item := &Customer{}
-		err := rows.Scan(&item.ID, &item.Name, &item.Phone, &item.Active, &item.Created)
+		err := rows.Scan(
+			&item.ID,
+			&item.Name,
+			&item.Phone,
+			&item.Active,
+			&item.Created)
 		if err != nil {
 			log.Print(err)
-			return nil, ErrNotFound
 		}
+
 		items = append(items, item)
 	}
-	if err != nil {
-		log.Print(err)
-		return nil, ErrInternal
-	}
-
 	return items, nil
 }
 
