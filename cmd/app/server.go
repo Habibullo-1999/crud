@@ -6,14 +6,15 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+
 	//"time"
 
-	"github.com/Habibullo-1999/crud/cmd/app/middleware"
+	//"github.com/Habibullo-1999/crud/cmd/app/middleware"
 	"github.com/Habibullo-1999/crud/pkg/customers"
 	"github.com/Habibullo-1999/crud/pkg/security"
 	"github.com/gorilla/mux"
-
-) 
+	"golang.org/x/crypto/bcrypt"
+)
 
 type Server struct {
 	mux          *mux.Router
@@ -22,10 +23,10 @@ type Server struct {
 }
 
 func NewServer(mux *mux.Router, customersSvc *customers.Service, security *security.Service) *Server {
-	return &Server{ 
-		mux: mux, 
-		customersSvc: customersSvc, 
-		security: security }
+	return &Server{
+		mux:          mux,
+		customersSvc: customersSvc,
+		security:     security}
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +50,12 @@ func (s *Server) Init() {
 	s.mux.HandleFunc("/customers/{id}/block", s.handleGetCustomerBlockByID).Methods(POST)
 	s.mux.HandleFunc("/customers/{id}/block", s.handleGetCustomerUnBlockByID).Methods(DELETE)
 	s.mux.HandleFunc("/customers/{id}", s.handleGetCustomerRemoveByID).Methods(DELETE)
-	s.mux.Use(middleware.Basic(s.security.Auth))
+
+	s.mux.HandleFunc("/api/customers", s.handleSave).Methods(POST)
+	s.mux.HandleFunc("/api/customers/token", s.handleCreateToken).Methods("POST")
+	s.mux.HandleFunc("/api/customers/token/validate", s.handleValidateToken).Methods("POST")
+
+	//s.mux.Use(middleware.Basic(s.security.Auth))
 
 }
 
@@ -237,4 +243,132 @@ func (s *Server) handleGetCustomerUnBlockByID(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+}
+
+func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
+
+	var item *customers.Customer
+
+	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+
+		errWriter(w, http.StatusBadRequest, err)
+		return
+	}
+
+	hashed, err := bcrypt.GenerateFromPassword([]byte(item.Password), bcrypt.DefaultCost)
+	if err != nil {
+
+		errWriter(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	item.Password = string(hashed)
+
+	customer, err := s.customersSvc.Save(r.Context(), item)
+	if err != nil {
+		errWriter(w, http.StatusInternalServerError, err)
+		return
+	}
+	resJson(w, customer)
+}
+
+func (s *Server) handleCreateToken(w http.ResponseWriter, r *http.Request) {
+	var item *struct {
+		Login    string `json:"login"`
+		Password string `json:"password`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+		errWriter(w, http.StatusBadRequest, err)
+		return
+	}
+
+	token, err := s.security.TokenForCustomer(r.Context(), item.Login, item.Password)
+
+	if err != nil {
+		errWriter(w, http.StatusBadRequest, err)
+		return
+	}
+
+	resJson(w, map[string]interface{}{"status": "ok", "token": token})
+}
+
+func (s *Server) handleValidateToken(w http.ResponseWriter, r *http.Request) {
+	var item *struct {
+		Token string `json:"token"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+		errWriter(w, http.StatusBadRequest, err)
+		return
+	}
+
+	id, err := s.security.AuthenticateCustomer(r.Context(), item.Token)
+
+	if err != nil {
+		status := http.StatusInternalServerError
+		text := "internal error"
+		if err == security.ErrNoSuchUser {
+			status = http.StatusNotFound
+			text = "not found"
+		}
+		if err == security.ErrExpireToken {
+			status = http.StatusBadRequest
+			text = "expired"
+		}
+
+		resJsonWithCode(w, status, map[string]interface{}{"status": "fail", "reason": text})
+		return
+	}
+
+	res := make(map[string]interface{})
+	res["status"] = "ok"
+	res["customerId"] = id
+
+	resJsonWithCode(w, http.StatusOK, res)
+}
+
+func resJson(w http.ResponseWriter, iData interface{}) {
+
+	data, err := json.Marshal(iData)
+
+	if err != nil {
+		errWriter(w, http.StatusInternalServerError, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(data)
+
+	if err != nil {
+
+		log.Print(err)
+	}
+}
+
+func resJsonWithCode(w http.ResponseWriter, sts int, iData interface{}) {
+
+	data, err := json.Marshal(iData)
+
+	if err != nil {
+
+		errWriter(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	w.WriteHeader(sts)
+
+	_, err = w.Write(data)
+
+	if err != nil {
+
+		log.Print(err)
+	}
+}
+
+// this is the function for writing the error to responseWriter
+func errWriter(w http.ResponseWriter, httpSts int, err error) {
+	log.Print(err)
+	http.Error(w, http.StatusText(httpSts), httpSts)
 }

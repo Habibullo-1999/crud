@@ -12,8 +12,14 @@
         }
     ],
     "cSpell.words": [
+        "bcrypt",
         "cerr",
         "jackc",
-        "postgres"
+        "pgxpool",
+        "postgres",
+        "библиотеке",
+        "ошибку",
+        "просто",
+        "фукция"
     ]
 }

@@ -23,11 +23,12 @@ func NewService(pool  *pgxpool.Pool) *Service {
 }
 
 type Customer struct {
-	ID      int64     `json:"id"`
-	Name    string    `json:"name"`
-	Phone   string    `json:"phone"`
-	Active  bool      `json:"active"`
-	Created time.Time `json:"created"`
+	ID      	int64     `json:"id"`
+	Name    	string    `json:"name"`
+	Phone   	string    `json:"phone"`
+	Password 	string	  `json:"password"`
+	Active		bool 	  `json:"active"`
+	Created 	time.Time `json:"created"`
 }
 
 func (s *Service) ByID(ctx context.Context, id int64) (*Customer, error) {
@@ -95,59 +96,28 @@ func (s *Service) AllActive(ctx context.Context) (items []*Customer, err  error)
 }
 
 // //Save method
-// // func (s *Service) Save(ctx context.Context, item *Customer) (c *Customer,err error) {
-// // 	items := &Customer{}
-// // 	if item.ID == 0 {
-// // 		err = s.db.QueryRowContext(ctx, `
-// // 		INSERT INTO customers(name,phone) VALUES($1,$2) RETURNING *
-// // 		`,item.Name, item.Phone).Scan(
-// // 			&items.ID,
-// // 			&items.Name,
-// // 			&items.Phone,
-// // 			&items.Active,
-// // 			&items.Created)
-
-// // 	} else {
-// // 		err = s.db.QueryRowContext(ctx, `
-// // 		UPDATE customers SET name=$1, phone=$2 WHERE id=$3 RETURNING *
-// // 		`, item.Name, item.Phone, item.ID).Scan(
-// // 			&items.ID,
-// // 			&items.Name,
-// // 			&items.Phone,
-// // 			&items.Active,
-// // 			&items.Created)
-// // 	}
-
-// // 	if err != nil {
-// // 		log.Print(err)
-// // 		return nil, ErrInternal
-// // 	}
-
-// // 	return items,nil
-
-// // }
-
-// //Save method
 func (s *Service) Save(ctx context.Context, customer *Customer) (c *Customer, err error) {
 
 	item := &Customer{}
 
 	if customer.ID == 0 {
-		sqlStatement := `insert into customers(name, phone) values($1, $2) returning *`
-		err = s.pool.QueryRow(ctx, sqlStatement, customer.Name, customer.Phone).Scan(
+		sqlStatement := `insert into customers(name, phone, password) values($1, $2, $3) returning *`
+		err = s.pool.QueryRow(ctx, sqlStatement, customer.Name, customer.Phone, customer.Password).Scan(
 			&item.ID,
 			&item.Name,
 			&item.Phone,
-			&item.Active,
-			&item.Created)
+			&item.Password,
+			&item.Created, 
+			&item.Active)
 	} else {
-		sqlStatement := `update customers set name=$1, phone=$2 where id=$3 returning *`
-		err = s.pool.QueryRow(ctx, sqlStatement, customer.Name, customer.Phone, customer.ID).Scan(
+		sqlStatement := `update customers set name=$1, phone=$2, password=$3 where id=$4 returning *`
+		err = s.pool.QueryRow(ctx, sqlStatement, customer.Name, customer.Phone, customer.Password, customer.ID).Scan(
 			&item.ID,
 			&item.Name,
 			&item.Phone,
-			&item.Active,
-			&item.Created)
+			&item.Password,
+			&item.Created,
+			&item.Active)
 	}
 
 	if err != nil {
