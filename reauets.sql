@@ -3,7 +3,8 @@ CREATE TABLE customers
   id        BIGSERIAL PRIMARY Key,
   name      TEXT      NOT NULL,
   phone     TEXT      NOT NULL UNIQUE,
-  password  TEXT      NOT NULL DEFAULT TRUE,
+  password  TEXT      NOT NULL ,
+  active    BOOLEAN   NOT NULL DEFAULT TRUE,
   created   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -34,3 +35,7 @@ ADD active BOOLEAN NOT NULL DEFAULT TRUE
 
 
 INSERT INTO customers_tokens(token,customer_id) VALUES('111',1)
+
+DROP TABLE customers_tokens;
+DROP TABLE managers;
+DROP TABLE customers;

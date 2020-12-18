@@ -79,20 +79,22 @@ func (s *Service) TokenForCustomer(ctx context.Context, phone string, password s
 func (s *Service) AuthenticateCustomer(ctx context.Context, token string) (int64, error) {
 	var id int64
 	var expire time.Time
-	
-	err := s.pool.QueryRow(ctx, `SELECT customer_id, expire FROM customers_tokens WHERE token =$1`, token).Scan(&id,&expire)
+
+	err := s.pool.QueryRow(ctx, `SELECT customer_id, expire FROM customers_tokens WHERE token =$1`, token).Scan(&id, &expire)
 	if err == pgx.ErrNoRows {
 		log.Print(err)
 		return 0, ErrNoSuchUser
-		
+
 	}
 	if err != nil {
 		log.Print(err)
 		return 0, ErrInternal
 	}
 
-	tN := time.Now().Format("2006-01-02 15:04:05")
-	tE := expire.Format("2006-01-02 15:04:05")
+	tN := time.Now().Unix()
+	log.Print(tN)
+	tE := expire.Unix()
+	log.Print(tE)
 
 	if tN > tE {
 		return 0, ErrExpireToken
