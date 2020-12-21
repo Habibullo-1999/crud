@@ -14,6 +14,7 @@
     "cSpell.words": [
         "bcrypt",
         "cerr",
+        "deps",
         "jackc",
         "pgxpool",
         "postgres",

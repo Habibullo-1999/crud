@@ -10,7 +10,7 @@ import (
 
 	"github.com/Habibullo-1999/crud/cmd/app"
 	"github.com/Habibullo-1999/crud/pkg/customers"
-	"github.com/Habibullo-1999/crud/pkg/security"
+	"github.com/Habibullo-1999/crud/pkg/managers"
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"go.uber.org/dig"
@@ -28,17 +28,17 @@ func main() {
 	}
 
 }
-
+// Func start server
 func execute(host string, port string, dsn string) (err error) {
 	deps := []interface{}{
 		app.NewServer,
 		mux.NewRouter,
-		func() (*pgxpool.Pool,error) {
+		func() (*pgxpool.Pool, error) {
 			ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
 			return pgxpool.Connect(ctx, dsn)
 		},
 		customers.NewService,
-		security.NewService,
+		managers.NewService,
 		func(server *app.Server) *http.Server {
 			return &http.Server{
 				Addr:    net.JoinHostPort(host, port),
@@ -55,7 +55,7 @@ func execute(host string, port string, dsn string) (err error) {
 		}
 	}
 
-	err = container.Invoke(func(server *app.Server){
+	err = container.Invoke(func(server *app.Server) {
 		server.Init()
 	})
 	if err != nil {
@@ -64,5 +64,5 @@ func execute(host string, port string, dsn string) (err error) {
 	return container.Invoke(func(server *http.Server) error {
 		return server.ListenAndServe()
 	})
-	
+
 }

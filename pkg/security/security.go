@@ -29,7 +29,7 @@ func NewService(pool *pgxpool.Pool) *Service {
 	return &Service{pool: pool}
 }
 
-// Authorization in this method, we check the login and password if correct then return true if not false
+// method, we check the login and password if correct then return true if not false
 func (s *Service) Auth(login string, password string) bool {
 	sql := `SELECT login, password FROM managers WHERE login=$1 AND password=$2`
 
@@ -41,6 +41,7 @@ func (s *Service) Auth(login string, password string) bool {
 	return true
 }
 
+//method for generating a token
 func (s *Service) TokenForCustomer(ctx context.Context, phone string, password string) (token string, err error) {
 	var hash string
 	var id int64
@@ -76,6 +77,7 @@ func (s *Service) TokenForCustomer(ctx context.Context, phone string, password s
 	return token, nil
 }
 
+//AuthenticateCustomer
 func (s *Service) AuthenticateCustomer(ctx context.Context, token string) (int64, error) {
 	var id int64
 	var expire time.Time

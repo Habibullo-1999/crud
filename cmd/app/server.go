@@ -2,33 +2,32 @@ package app
 
 import (
 	"encoding/json"
-	"errors"
 	"log"
 	"net/http"
-	"strconv"
 
-	//"time"
-
-	//"github.com/Habibullo-1999/crud/cmd/app/middleware"
+	"github.com/Habibullo-1999/crud/cmd/app/middleware"
 	"github.com/Habibullo-1999/crud/pkg/customers"
-	"github.com/Habibullo-1999/crud/pkg/security"
+	"github.com/Habibullo-1999/crud/pkg/managers"
 	"github.com/gorilla/mux"
-	"golang.org/x/crypto/bcrypt"
-)
 
+)
+//Server ..............
 type Server struct {
 	mux          *mux.Router
 	customersSvc *customers.Service
-	security     *security.Service
+	managerSvc   *managers.Service
 }
 
-func NewServer(mux *mux.Router, customersSvc *customers.Service, security *security.Service) *Server {
+//NewServer: Create new Server
+func NewServer(mux *mux.Router, customersSvc *customers.Service, mSvc *managers.Service) *Server {
 	return &Server{
 		mux:          mux,
 		customersSvc: customersSvc,
-		security:     security}
+		managerSvc:   mSvc,
+	}
 }
 
+//function for launching handlers through mux
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mux.ServeHTTP(w, r)
 }
@@ -39,295 +38,36 @@ const (
 	DELETE = "DELETE"
 )
 
+//Init ... server initialization
 func (s *Server) Init() {
-	// s.mux.HandleFunc("/customers.getById", s.handleGetCustomerByID)
 
-	s.mux.HandleFunc("/customers", s.handleGetCustomerAll).Methods(GET)
-	s.mux.HandleFunc("/customers", s.handleGetCustomerSave).Methods(POST)
-	s.mux.HandleFunc("/customers/active", s.handleGetCustomerAllActive).Methods(GET)
+	customerAuthMd := middleware.Authenticate(s.customersSvc.IDByToken)
+	customersSubrouter := s.mux.PathPrefix("/api/customers").Subrouter()
 
-	s.mux.HandleFunc("/customers/{id}", s.handleGetCustomerByID).Methods(GET)
-	s.mux.HandleFunc("/customers/{id}/block", s.handleGetCustomerBlockByID).Methods(POST)
-	s.mux.HandleFunc("/customers/{id}/block", s.handleGetCustomerUnBlockByID).Methods(DELETE)
-	s.mux.HandleFunc("/customers/{id}", s.handleGetCustomerRemoveByID).Methods(DELETE)
+	customersSubrouter.Use(customerAuthMd)
+	customersSubrouter.HandleFunc("", s.handleCustomerRegistration).Methods(POST)
+	customersSubrouter.HandleFunc("/token", s.handleCustomerGetToken).Methods(POST)
+	customersSubrouter.HandleFunc("/products", s.handleCustomerGetProducts).Methods(GET)
+	customersSubrouter.HandleFunc("/purchases", s.handleCustomerGetPurchases).Methods(GET)
 
-	s.mux.HandleFunc("/api/customers", s.handleSave).Methods(POST)
-	s.mux.HandleFunc("/api/customers/token", s.handleCreateToken).Methods("POST")
-	s.mux.HandleFunc("/api/customers/token/validate", s.handleValidateToken).Methods("POST")
+	managersAuthenticateMd := middleware.Authenticate(s.managerSvc.IDByToken)
+	managersSubRouter := s.mux.PathPrefix("/api/managers").Subrouter()
+	managersSubRouter.Use(managersAuthenticateMd)
 
-	//s.mux.Use(middleware.Basic(s.security.Auth))
-
-}
-
-func (s *Server) handleGetCustomerByID(w http.ResponseWriter, r *http.Request) {
-	//idParam := r.URL.Query().Get("id")
-	idParam, ok := mux.Vars(r)["id"]
-	if !ok {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-	id, err := strconv.ParseInt(idParam, 10, 64)
-	if err != nil {
-		return
-	}
-
-	item, err := s.customersSvc.ByID(r.Context(), id)
-	if errors.Is(err, customers.ErrNotFound) {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-		return
-	}
-
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
-
-	data, err := json.Marshal(item)
-	if err != nil {
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(data)
-	if err != nil {
-		return
-	}
-
-}
-func (s *Server) handleGetCustomerAll(w http.ResponseWriter, r *http.Request) {
-
-	item, err := s.customersSvc.All(r.Context())
-
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
-
-	data, err := json.Marshal(item)
-	if err != nil {
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(data)
-	if err != nil {
-		return
-	}
-
-}
-func (s *Server) handleGetCustomerAllActive(w http.ResponseWriter, r *http.Request) {
-
-	item, err := s.customersSvc.AllActive(r.Context())
-
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
-
-	data, err := json.Marshal(item)
-	if err != nil {
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(data)
-	if err != nil {
-		return
-	}
-
-}
-func (s *Server) handleGetCustomerSave(w http.ResponseWriter, r *http.Request) {
-	var item *customers.Customer
-	err := json.NewDecoder(r.Body).Decode(&item)
-	if err != nil {
-		log.Print(err)
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-	item, err = s.customersSvc.Save(r.Context(), item)
-
-	data, err := json.Marshal(item)
-	if err != nil {
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(data)
-	if err != nil {
-		return
-	}
-
-}
-func (s *Server) handleGetCustomerRemoveByID(w http.ResponseWriter, r *http.Request) {
-	idP := mux.Vars(r)["id"]
-
-	id, err := strconv.ParseInt(idP, 10, 64)
-	if err != nil {
-		return
-	}
-
-	item, err := s.customersSvc.RemoveById(r.Context(), id)
-	if errors.Is(err, customers.ErrNotFound) {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-		return
-	}
-
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
-
-	data, err := json.Marshal(item)
-	if err != nil {
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(data)
-	if err != nil {
-		return
-	}
-
-}
-func (s *Server) handleGetCustomerBlockByID(w http.ResponseWriter, r *http.Request) {
-	idP := mux.Vars(r)["id"]
-
-	id, err := strconv.ParseInt(idP, 10, 64)
-	if err != nil {
-		return
-	}
-
-	item, err := s.customersSvc.BlockByID(r.Context(), id)
-	if errors.Is(err, customers.ErrNotFound) {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-		return
-	}
-
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
-
-	data, err := json.Marshal(item)
-	if err != nil {
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(data)
-	if err != nil {
-		return
-	}
-
-}
-func (s *Server) handleGetCustomerUnBlockByID(w http.ResponseWriter, r *http.Request) {
-	idP := mux.Vars(r)["id"]
-
-	id, err := strconv.ParseInt(idP, 10, 64)
-	if err != nil {
-		return
-	}
-
-	item, err := s.customersSvc.UnBlockByID(r.Context(), id)
-	if errors.Is(err, customers.ErrNotFound) {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-		return
-	}
-
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
-
-	data, err := json.Marshal(item)
-	if err != nil {
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(data)
-	if err != nil {
-		return
-	}
+	managersSubRouter.HandleFunc("", s.handleCustomerRegistration).Methods(POST)
+	managersSubRouter.HandleFunc("/token", s.handleManagerGetToken).Methods(POST)
+	managersSubRouter.HandleFunc("/sales", s.handleManagerGetSales).Methods(GET)
+	managersSubRouter.HandleFunc("/sales", s.handleManagerMakeSales).Methods(POST)
+	managersSubRouter.HandleFunc("/products", s.handleManagerGetProducts).Methods(GET)
+	managersSubRouter.HandleFunc("/products", s.handleManagerChangeProducts).Methods(POST)
+	managersSubRouter.HandleFunc("/products/{id:[0-9]+}", s.handleManagerRemoveProductByID).Methods(DELETE)
+	managersSubRouter.HandleFunc("/customers", s.handleManagerGetCustomers).Methods(GET)
+	managersSubRouter.HandleFunc("/customers", s.handleManagerChangeCustomer).Methods(POST)
+	managersSubRouter.HandleFunc("/customers/{id:[0-9]+}", s.handleManagerRemoveCustomerByID).Methods(DELETE)
 
 }
 
-func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
-
-	var item *customers.Customer
-
-	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
-
-		errWriter(w, http.StatusBadRequest, err)
-		return
-	}
-
-	hashed, err := bcrypt.GenerateFromPassword([]byte(item.Password), bcrypt.DefaultCost)
-	if err != nil {
-
-		errWriter(w, http.StatusInternalServerError, err)
-		return
-	}
-
-	item.Password = string(hashed)
-
-	customer, err := s.customersSvc.Save(r.Context(), item)
-	if err != nil {
-		errWriter(w, http.StatusInternalServerError, err)
-		return
-	}
-	resJson(w, customer)
-}
-
-func (s *Server) handleCreateToken(w http.ResponseWriter, r *http.Request) {
-	var item *struct {
-		Login    string `json:"login"`
-		Password string `json:"password`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
-		errWriter(w, http.StatusBadRequest, err)
-		return
-	}
-
-	token, err := s.security.TokenForCustomer(r.Context(), item.Login, item.Password)
-
-	if err != nil {
-		errWriter(w, http.StatusBadRequest, err)
-		return
-	}
-
-	resJson(w, map[string]interface{}{"status": "ok", "token": token})
-}
-
-func (s *Server) handleValidateToken(w http.ResponseWriter, r *http.Request) {
-	var item *struct {
-		Token string `json:"token"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
-		errWriter(w, http.StatusBadRequest, err)
-		return
-	}
-
-	id, err := s.security.AuthenticateCustomer(r.Context(), item.Token)
-
-	if err != nil {
-		status := http.StatusInternalServerError
-		text := "internal error"
-		if err == security.ErrNoSuchUser {
-			status = http.StatusNotFound
-			text = "not found"
-		}
-		if err == security.ErrExpireToken {
-			status = http.StatusBadRequest
-			text = "expired"
-		}
-
-		resJsonWithCode(w, status, map[string]interface{}{"status": "fail", "reason": text})
-		return
-	}
-
-	res := make(map[string]interface{})
-	res["status"] = "ok"
-	res["customerId"] = id
-
-	resJsonWithCode(w, http.StatusOK, res)
-}
-
+// function for the JSON response
 func resJson(w http.ResponseWriter, iData interface{}) {
 
 	data, err := json.Marshal(iData)
@@ -345,29 +85,7 @@ func resJson(w http.ResponseWriter, iData interface{}) {
 	}
 }
 
-func resJsonWithCode(w http.ResponseWriter, sts int, iData interface{}) {
-
-	data, err := json.Marshal(iData)
-
-	if err != nil {
-
-		errWriter(w, http.StatusInternalServerError, err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-
-	w.WriteHeader(sts)
-
-	_, err = w.Write(data)
-
-	if err != nil {
-
-		log.Print(err)
-	}
-}
-
-// this is the function for writing the error to responseWriter
+// function for writing an error in responseWriter
 func errWriter(w http.ResponseWriter, httpSts int, err error) {
 	log.Print(err)
 	http.Error(w, http.StatusText(httpSts), httpSts)
