@@ -39,6 +39,12 @@ func (s *Server) handleManagerRegistration(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	Admin := s.managerSvc.IsAdmin(r.Context(),id)
+	if Admin != true {
+		errWriter(w, http.StatusInternalServerError, err)
+		return
+	}
+
 	item := &managers.Manager{
 		ID:    registrationItem.ID,
 		Name:  registrationItem.Name,
@@ -74,6 +80,7 @@ func (s *Server) handleManagerGetToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+
 	resJson(w, map[string]interface{}{"token": token})
 }
 
@@ -96,6 +103,13 @@ func (s *Server) handleManagerChangeProducts(w http.ResponseWriter, r *http.Requ
 		errWriter(w, http.StatusInternalServerError, err)
 		return
 	}
+
+	product, err = s.managerSvc.SaveProduct(r.Context(),product)
+	if err != nil {
+		errWriter(w, http.StatusForbidden, err)
+		return
+	}
+
 	resJson(w, product)
 }
 
@@ -156,6 +170,7 @@ func (s *Server) handleManagerGetProducts(w http.ResponseWriter, r *http.Request
 		errWriter(w, http.StatusBadRequest, err)
 		return
 	}
+	
 
 	resJson(w, items)
 }

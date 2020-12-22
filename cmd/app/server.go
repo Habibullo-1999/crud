@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 
 )
+
 //Server ..............
 type Server struct {
 	mux          *mux.Router
@@ -54,16 +55,16 @@ func (s *Server) Init() {
 	managersSubRouter := s.mux.PathPrefix("/api/managers").Subrouter()
 	managersSubRouter.Use(managersAuthenticateMd)
 
-	managersSubRouter.HandleFunc("", s.handleCustomerRegistration).Methods(POST)
+	managersSubRouter.HandleFunc("", s.handleManagerRegistration).Methods(POST)
 	managersSubRouter.HandleFunc("/token", s.handleManagerGetToken).Methods(POST)
 	managersSubRouter.HandleFunc("/sales", s.handleManagerGetSales).Methods(GET)
 	managersSubRouter.HandleFunc("/sales", s.handleManagerMakeSales).Methods(POST)
 	managersSubRouter.HandleFunc("/products", s.handleManagerGetProducts).Methods(GET)
 	managersSubRouter.HandleFunc("/products", s.handleManagerChangeProducts).Methods(POST)
-	managersSubRouter.HandleFunc("/products/{id:[0-9]+}", s.handleManagerRemoveProductByID).Methods(DELETE)
+	managersSubRouter.HandleFunc("/products/{id}", s.handleManagerRemoveProductByID).Methods(DELETE)
 	managersSubRouter.HandleFunc("/customers", s.handleManagerGetCustomers).Methods(GET)
 	managersSubRouter.HandleFunc("/customers", s.handleManagerChangeCustomer).Methods(POST)
-	managersSubRouter.HandleFunc("/customers/{id:[0-9]+}", s.handleManagerRemoveCustomerByID).Methods(DELETE)
+	managersSubRouter.HandleFunc("/customers/{id}", s.handleManagerRemoveCustomerByID).Methods(DELETE)
 
 }
 
